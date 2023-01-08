@@ -68,18 +68,7 @@ module LoadStoreBuffer(
     reg  [3:0]     LSB_front;
     reg  [3:0]     LSB_rear;
     reg  [3:0]     commit_amount;
-/*
-    reg             full;
-    reg  [`LSID]    front, rear, commit_amount;
 
-    reg  [ 2: 0]    ins         [`LSSZ];
-    reg  [`LSSZ]    val1_ready, val2_ready, iscommit;
-    reg  [`RLEN]    val1        [`LSSZ];
-    reg  [`RLEN]    val2        [`LSSZ];
-    reg  [`RLEN]    val_imm     [`LSSZ];
-    reg  [`RBID]    ROB_idx     [`LSSZ];
-
-*/
 
     always @(*) begin
         update_reg1=reg1; update_reg1_ready=reg1_ready;
