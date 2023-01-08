@@ -1,7 +1,7 @@
 // RISCV32I CPU top module
 // port modification allowed for debugging purposes
 
-`include "Memctrl.v"
+`include "MemCtrl.v"
 `include "ICache.v"
 `include "InstructionFetch.v"
 `include "Decoder.v"
