@@ -1,29 +1,21 @@
-// RISCV32I CPU top module
-// port modification allowed for debugging purposes
+`include "defines.v"
 
-`include "MemCtrl.v"
-`include "ICache.v"
-`include "InstructionFetch.v"
-`include "Decoder.v"
-`include "ReOrderBuffer.v"
-`include "RegFile.v"
-`include "ReservationStation.v"
-`include "LoadStoreBuffer.v"
-`include "ALU.v"
 
 module cpu(
     input  wire                 clk_in,			// system clock signal
     input  wire                 rst_in,			// reset signal
-    input  wire			rdy_in,	                // ready signal, pause cpu when low
+	input  wire				    rdy_in,			// ready signal, pause cpu when low
 
     input  wire [ 7:0]          mem_din,		// data input bus
     output wire [ 7:0]          mem_dout,		// data output bus
     output wire [31:0]          mem_a,			// address bus (only 17:0 is used)
     output wire                 mem_wr,			// write/read signal (1 for write)
-    input  wire                 io_buffer_full,         // 1 if uart buffer is full
-
-    output wire [31:0]		dbgreg_dout		// cpu register output (debugging demo)
+	
+	input  wire                 io_buffer_full, // 1 if uart buffer is full
+	
+	output wire [31:0]			dbgreg_dout		// cpu register output (debugging demo)
 );
+
 
 // implementation goes here
 
@@ -38,6 +30,7 @@ module cpu(
 // - 0x30004 write: indicates program stop (will output '\0' through uart tx)
 
 
+
 wire    ICache_need_read_from_MemCtrl;
 wire [31: 0]   ICache_address_MemCtrl;
 wire    MemCtrl_output_instr_valid_ICache;
@@ -48,7 +41,7 @@ wire    LSB_send_update_LoadStore_to_memctrl;//是否有指令等待这一周期
 wire    LSB_send_update_Load_to_memctrl;//是否有Load指令等待这一周期处理
 wire    LSB_send_update_Store_to_memctrl;//是否有Store指令等待这一周期处理
 wire [31: 0]    LSB_send_value_to_memctrl;
-wire [5 : 0]    LSB_send_LS_opcode_ID_to_memctrl;
+wire [2 : 0]    LSB_send_LSB_insty_to_memctrl;
 wire [31: 0]    LSB_send_mem_address_to_memctrl;
 
 wire memctrl_update_finished_to_LSB;
@@ -69,7 +62,7 @@ wire [31:0]  IF_output_Instr_jump_wrong_to_Decoder;
 
 
 
-
+wire [2:0]   Decoder_output_insty_to_CDB;
 wire [4:0]   Decoder_output_rs1_to_RegFile; //输出寄存器地址 来查找位置from RegFile 用来处理这条指令的vj vk qj qk
 wire [4:0]   Decoder_output_rs2_to_RegFile;
 wire         RegFile_output_rs1_ready_to_Decoder;
@@ -124,15 +117,11 @@ wire            LoadStoreBuffer_full;
 wire[3:0]       ReOrderBuffer_front;
 wire[3:0]       ReOrderBuffer_rear;
 
-wire              ReservationStation_ex_instr_valid;
-wire[5:0]         ReservationStation_ex_opcode_id;
-wire [31:0]       ReservationStation_ex_vj;
-wire [31:0]       ReservationStation_ex_vk;
-wire [31:0]       ReservationStation_ex_A;
-wire [3:0]        ReservationStation_ex_ROB_pos;
-// decoder
-MemCtrl MemCtrl(
+wire [31:0]     DC_debug_ins_ROB;
 
+wire Decoder_output_isjump_to_CDB;
+wire[31:0] Decoder_output_jump_wrong_to_pc_to_CDB;
+MemCtrl MemCtrl(
         .clk                            (clk_in),
         .rst                            (rst_in),
         .rdy                            (rdy_in),
@@ -151,9 +140,7 @@ MemCtrl MemCtrl(
 
     //上一周期的LSB发出的请求 这一周期需要处理的指令
         .update_LSB                     (LSB_send_update_LoadStore_to_memctrl),//是否有指令等待这一周期处理
-        .update_LSB_Load                (LSB_send_update_Load_to_memctrl),//是否有Load指令等待这一周期处理
-        .update_LSB_Store               (LSB_send_update_Store_to_memctrl),//是否有Store指令等待这一周期处理
-        .update_LSB_opcode_ID           (LSB_send_LS_opcode_ID_to_memctrl),
+        .update_LSB_insty               (LSB_send_LSB_insty_to_memctrl),
         .update_LSB_address             (LSB_send_mem_address_to_memctrl),
         .update_LSB_value               (LSB_send_value_to_memctrl),
 
@@ -180,6 +167,7 @@ ICache ICache (
         .jump_wrong                     (jump_wrong_from_ROB)
 );
 
+
 InstructionFetch InstructionFetch (
         .clk                            (clk_in),
         .rst                            (rst_in),
@@ -205,9 +193,11 @@ InstructionFetch InstructionFetch (
 );
 
 Decoder Decoder (
+
         .clk                            (clk_in),
         .rst                            (rst_in),
         .rdy                            (rdy_in),
+        .jump_wrong                     (jump_wrong_from_ROB),
         .Decoder_not_ready_accept       (Decoder_not_ready_accept_from_InstructionFetch),
         .ROB_full                       (ReOrderBuffer_full),
         .LSB_full                       (LoadStoreBuffer_full),
@@ -241,8 +231,10 @@ Decoder Decoder (
         .reg2                           (Decoder_output_reg2_to_CDB), //代表寄存器的值
         .imm                            (Decoder_output_imm_to_CDB),
 
-
+        .ROB_instr_isjump               (Decoder_output_isjump_to_CDB),
+        .ROB_instr_jump_wrong_to_pc     (Decoder_output_jump_wrong_to_pc_to_CDB),
         .Decoder_update_LSB             (Decoder_update_LoadStoreBuffer),  // 本次指令是否会更新其他容器
+        .insty_LSB                      (Decoder_output_insty_to_CDB),
         .Decoder_update_ROB             (Decoder_update_ReOrderBuffer),
         .Decoder_update_RS              (Decoder_update_ReservationStation)
 );
@@ -275,6 +267,8 @@ ReOrderBuffer  ReOrderBuffer(
         .instr_valid                    (Decoder_update_ReOrderBuffer),
         .rd                             (Decoder_output_rd_to_CDB),  // 目标寄存器
         .opcode_ID                      (Decoder_output_opcode_id_to_CDB),  // opcode_ID
+        .instr_jump_wrong_to_pc         (Decoder_output_jump_wrong_to_pc_to_CDB),
+        .is_jump                        (Decoder_output_isjump_to_CDB),
         //处理 RS/LSB 改变产生的影响
         .RS_update                      (ALU_instr_valid_to_CDB),
         .RS_ROB_pos                     (ALU_ROB_pos_to_CDB),
@@ -286,13 +280,15 @@ ReOrderBuffer  ReOrderBuffer(
         .commit_store                   (ROB_commit_store),
 
 
-
+        .SB_commit                      (SB_commit_from_ROB),
         .jump_wrong                     (jump_wrong_from_ROB),
         .jump_wrong_to_pc               (jump_wrong_to_pc_from_ROB),
         .ROB_FULL                       (ReOrderBuffer_full),
         .front                          (ReOrderBuffer_front),
         .rear                           (ReOrderBuffer_rear)
 );
+
+
 RegFile RegFile(
         .clk                            (clk_in),
         .rst                            (rst_in),
@@ -319,11 +315,38 @@ RegFile RegFile(
         .update_rd                      (ReOrderBuffer_update_rd_to_RegFile),
         .jump_wrong                     (jump_wrong_from_ROB)
 );
+ReservationStation ReservationStation(
+        .clk                            (clk_in),
+        .rst                            (rst_in),
+        .rdy                            (rdy_in),
+        // 每个周期读入一条指令from decoder
+        .update_Decoder_valid           (Decoder_update_ReservationStation),                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               // reg1，reg2，imm 的值，如果 reg1，reg2 没拿到真值，则为 ROB 编号
 
+        .opcode_id                      (Decoder_output_opcode_id_to_CDB),
+        .rs1_ready                      (Decoder_output_rs1_ready_to_CDB),
+        .rs2_ready                      (Decoder_output_rs2_ready_to_CDB), //代表寄存器目前是否有值
+        .reg1                           (Decoder_output_reg1_to_CDB),
+        .reg2                           (Decoder_output_reg2_to_CDB), //代表寄存器的值
+        .imm                            (Decoder_output_imm_to_CDB),
+        //from ROB  新指令在 ROB 中的编号
+        .ROB_pos                        (ReOrderBuffer_rear),
 
+        // 其他容器在上一周期是否发来更新
+        .update_RS_valid                (ALU_instr_valid_to_CDB),         //from RS_CDB
+        .update_RS_ROB_pos              (ALU_ROB_pos_to_CDB),
+        .update_RS_val                  (ALU_val_to_CDB),
+        //from LSB
 
+        .update_LSB_Load_valid          (Load_complete_instr_valid),
+        .update_LSB_Load_ROB_pos        (Load_complete_ROB_pos),
+        .update_LSB_Load_val            (Load_complete_val),
 
-
+        .ALU_instr_valid                (ALU_instr_valid_to_CDB),
+        .ALU_ROB_pos                    (ALU_ROB_pos_to_CDB),
+        .ALU_val                        (ALU_val_to_CDB),
+        
+        .jump_wrong                     (jump_wrong_from_ROB)
+);
 LoadStoreBuffer LoadStoreBuffer(
         .clk                            (clk_in),
         .rst                            (rst_in),
@@ -331,9 +354,9 @@ LoadStoreBuffer LoadStoreBuffer(
 
         // 这一周期需要处理的指令 from decorder
         .update_Decoder_valid           (Decoder_update_LoadStoreBuffer),
-        .opcode_ID                      (Decoder_output_opcode_id_to_CDB),
-        .reg1_ready                     (Decoder_output_rs1_ready_to_CDB),
-        .reg2_ready                     (Decoder_output_rs2_ready_to_CDB),
+        .insty                          (Decoder_output_insty_to_CDB),
+        .rs1_ready                      (Decoder_output_rs1_ready_to_CDB),
+        .rs2_ready                      (Decoder_output_rs2_ready_to_CDB),
         .reg1                           (Decoder_output_reg1_to_CDB),
         .reg2                           (Decoder_output_reg2_to_CDB),
         .imm                            (Decoder_output_imm_to_CDB),
@@ -358,11 +381,9 @@ LoadStoreBuffer LoadStoreBuffer(
         .memctrl_update_finished        (memctrl_update_finished_to_LSB),
         .memctrl_update_value           (memctrl_update_LS_value_to_LSB),
 
-        .LS_opcode_ID                   (LSB_send_LS_opcode_ID_to_memctrl),
+        .LS_insty                       (LSB_send_LSB_insty_to_memctrl),
         .LS_value                       (LSB_send_value_to_memctrl),
         .mem_address                    (LSB_send_mem_address_to_memctrl),
-        .update_Load                    (LSB_send_update_Load_to_memctrl),
-        .update_Store                   (LSB_send_update_Store_to_memctrl),
         .update_LoadStore               (LSB_send_update_LoadStore_to_memctrl),
 
 
@@ -370,59 +391,6 @@ LoadStoreBuffer LoadStoreBuffer(
         .jump_wrong                     (jump_wrong_from_ROB)
 
 );
-ReservationStation ReservationStation(
-        .clk                            (clk_in),
-        .rst                            (rst_in),
-        .rdy                            (rdy_in),
-        // 每个周期读入一条指令from decoder
-        .update_Decoder_valid           (Decoder_update_ReservationStation),                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               // reg1，reg2，imm 的值，如果 reg1，reg2 没拿到真值，则为 ROB 编号
 
-        .opcode_id                      (Decoder_output_opcode_id_to_CDB),
-        .reg1_ready                     (Decoder_output_rs1_ready_to_CDB),
-        .reg2_ready                     (Decoder_output_rs2_ready_to_CDB), //代表寄存器目前是否有值
-        .reg1                           (Decoder_output_reg1_to_CDB),
-        .reg2                           (Decoder_output_reg2_to_CDB), //代表寄存器的值
-        .imm                            (Decoder_output_imm_to_CDB),
-        //from ROB  新指令在 ROB 中的编号
-        .ROB_pos                        (ReOrderBuffer_rear),
-
-        //每个周期calc一条指令，将计算出来的值传到CDB
-        .ex_instr_valid                 (ReservationStation_ex_instr_valid),
-        .ex_opcode_id                   (ReservationStation_ex_opcode_id),
-        .ex_vj                          (ReservationStation_ex_vj),
-        .ex_vk                          (ReservationStation_ex_vk),
-        .ex_A                           (ReservationStation_ex_A),
-        .ex_ROB_pos                     (ReservationStation_ex_ROB_pos),
-
-        // 其他容器在上一周期是否发来更新
-        .update_RS_valid                (ALU_instr_valid_to_CDB),         //from RS_CDB
-        .update_RS_ROB_pos              (ALU_ROB_pos_to_CDB),
-        .update_RS_val                  (ALU_val_to_CDB),
-        //from LSB
-
-        .update_LSB_Load_valid          (Load_complete_instr_valid),
-        .update_LSB_Load_ROB_pos        (Load_complete_ROB_pos),
-        .update_LSB_Load_val            (Load_complete_val)
-);
-
-ALU ALU(
-        .clk                            (clk_in),
-        .rst                            (rst_in),
-        .rdy                            (rdy_in),
-
-         //from RS
-        .instr_valid                    (ReservationStation_ex_instr_valid),
-        .opcode_id                      (ReservationStation_ex_opcode_id),
-        .vj                             (ReservationStation_ex_vj),
-        .vk                             (ReservationStation_ex_vk),
-        .A                              (ReservationStation_ex_A),
-        .ROB_pos                        (ReservationStation_ex_ROB_pos),
-
-        //to CDB
-        .ALU_instr_valid                (ALU_instr_valid_to_CDB),
-        .ALU_ROB_pos                    (ALU_ROB_pos_to_CDB),
-        .ALU_val                        (ALU_val_to_CDB)
-
-);
 
 endmodule
