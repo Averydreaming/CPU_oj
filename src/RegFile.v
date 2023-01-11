@@ -31,30 +31,30 @@ module RegFile (
     integer i;
     reg [31: 0] debug_now;
     always @(posedge clk) begin
-        debug_now<=debug_now + 1;
+        debug_now <= debug_now + 1;
         if (rst)
-            debug_now<=0;
+            debug_now <= 0;
         if (rst) begin
-            Reg_busy<=~(0);
+            Reg_busy <= ~(0);
             for (i=0; i < 32; i=i + 1)
-                Reg_reg[i]<=0;
+                Reg_reg[i] <= 0;
         end
         else if (!rdy) begin
             
         end
         else begin
             if (jump_wrong) begin
-                Reg_busy<=~(0);
+                Reg_busy <= ~(0);
             end
             else begin
                 if (commit_valid && commit_rd) begin
-                    Reg_reg[commit_rd]<=commit_val;
-                    Reg_busy[commit_rd]<=(Reg_reorder[commit_rd] == commit_ROB_pos && commit_rd != update_rd);
+                    Reg_reg[commit_rd] <= commit_val;
+                    Reg_busy[commit_rd] <= (Reg_reorder[commit_rd] == commit_ROB_pos && commit_rd != update_rd);
                 end
 
                 if (update_valid && update_rd) begin
                     Reg_busy[update_rd] <=0;
-                    Reg_reorder[update_rd]<=update_ROB_pos;
+                    Reg_reorder[update_rd] <= update_ROB_pos;
                 end 
             end 
         end

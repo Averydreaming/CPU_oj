@@ -88,82 +88,82 @@ module MemCtrl (
 
     reg [31: 0] debug_now;
     always @(posedge clk) begin
-        debug_now<=debug_now + 1;
+        debug_now <= debug_now + 1;
         
         if (rst)
-            debug_now<=0;
+            debug_now <= 0;
 
         if (rst) begin
             ICache_complete <=0;
             LSB_complete <=0;
             IO_need_Stall <=0;
-            last_is_IC<=1;
-            LSB_cycle<=0;
-            ICache_cycle<=0;
+            last_is_IC <= 1;
+            LSB_cycle <= 0;
+            ICache_cycle <= 0;
         end 
         else if (!rdy) begin
             
         end 
         else if (jump_wrong) begin
             ICache_complete <=0;
-            ICache_cycle<=0;
+            ICache_cycle <= 0;
             if (!update_LSB || !(update_LSB_insty == `SB || update_LSB_insty == `SH || update_LSB_insty == `SW)) begin
                 LSB_complete <=0; 
-                LSB_cycle<=0;
+                LSB_cycle <= 0;
                 IO_need_Stall <=0;
             end
         end
         
         if (!rst && rdy && (!jump_wrong || (update_LSB && update_LSB_insty[2] && update_LSB_insty[1:0] != 0)))
         begin
-            last_ICache_flag<=update_LSB_insty;
+            last_ICache_flag <= update_LSB_insty;
             
             if (update_LSB) begin
                 case (LSB_cycle)
-                    2'b01: LSB_value[ 7: 0]<=mem_din;
-                    2'b10: LSB_value[15: 8]<=mem_din;
-                    2'b11: LSB_value[23:16]<=mem_din;
+                    2'b01: LSB_value[ 7: 0] <= mem_din;
+                    2'b10: LSB_value[15: 8] <= mem_din;
+                    2'b11: LSB_value[23:16] <= mem_din;
                 endcase
 
                 if ((!IO_need_Stall && !io_buffer_full) || !is_IO)
                 begin
                     case (update_LSB_insty)
                         `LB: begin
-                            LSB_complete<=1;
-                            IO_need_Stall<=1;
+                            LSB_complete <= 1;
+                            IO_need_Stall <= 1;
                         end 
                         `LH: begin
-                            LSB_complete<=LSB_cycle[0] == 1'b1;
-                            LSB_cycle[0]<=-(~LSB_cycle[0]);
-                            IO_need_Stall<=1;
+                            LSB_complete <= LSB_cycle[0] == 1'b1;
+                            LSB_cycle[0] <= -(~LSB_cycle[0]);
+                            IO_need_Stall <= 1;
                         end
                         `LW: begin
-                            LSB_complete<=LSB_cycle == 2'b11;
-                            LSB_cycle<=-(~LSB_cycle);
-                            IO_need_Stall<=1;
+                            LSB_complete <= LSB_cycle == 2'b11;
+                            LSB_cycle <= -(~LSB_cycle);
+                            IO_need_Stall <= 1;
                         end
                         `LBU: begin
-                            LSB_complete<=1;
-                            IO_need_Stall<=1;
+                            LSB_complete <= 1;
+                            IO_need_Stall <= 1;
                         end
                         `LHU: begin
-                            LSB_complete<=LSB_cycle[0] == 1'b1;
-                            LSB_cycle[0]<=-(~LSB_cycle[0]);
-                            IO_need_Stall<=1;
+                            LSB_complete <= LSB_cycle[0] == 1'b1;
+                            LSB_cycle[0] <= -(~LSB_cycle[0]);
+                            IO_need_Stall <= 1;
                         end
                         `SB: begin
-                            LSB_complete<=1;
-                            IO_need_Stall<=1;
+                            LSB_complete <= 1;
+                            IO_need_Stall <= 1;
                         end
                         `SH: begin
-                            LSB_complete<=LSB_cycle[0] == 1'b1;
-                            LSB_cycle[0]<=-(~LSB_cycle[0]);
-                            IO_need_Stall<=1;
+                            LSB_complete <= LSB_cycle[0] == 1'b1;
+                            LSB_cycle[0] <= -(~LSB_cycle[0]);
+                            IO_need_Stall <= 1;
                         end
                         `SW: begin
-                            LSB_complete<=LSB_cycle == 2'b11;
-                            LSB_cycle<=-(~LSB_cycle);
-                            IO_need_Stall<=1;
+                            LSB_complete <= LSB_cycle == 2'b11;
+                            LSB_cycle <= -(~LSB_cycle);
+                            IO_need_Stall <= 1;
                         end
                     endcase
                 end
@@ -175,10 +175,10 @@ module MemCtrl (
                 last_is_IC <=0;
             end
             else if (update_ICache) begin
-                ICache_complete<=ICache_cycle == 2'b11;
-                IO_need_Stall<=1;
-                last_is_IC<=1;
-                ICache_cycle<=-(~ICache_cycle);
+                ICache_complete <= ICache_cycle == 2'b11;
+                IO_need_Stall <= 1;
+                last_is_IC <= 1;
+                ICache_cycle <= -(~ICache_cycle);
                 LSB_complete <=0;
             end
             else begin
@@ -190,9 +190,9 @@ module MemCtrl (
 
             if (last_is_IC) begin
                 case (ICache_cycle)
-                    2'b01: ICache_Instr[ 7: 0]<=mem_din;
-                    2'b10: ICache_Instr[15: 8]<=mem_din;
-                    2'b11: ICache_Instr[23:16]<=mem_din;
+                    2'b01: ICache_Instr[ 7: 0] <= mem_din;
+                    2'b10: ICache_Instr[15: 8] <= mem_din;
+                    2'b11: ICache_Instr[23:16] <= mem_din;
                 endcase
             end
         end 
