@@ -194,11 +194,11 @@ module ReservationStation(
                     RS_vj[i]<=update_LSB_Load_val;
                 end
 
-                if (update_RS_valid && !RS_qk[i] && RS_vj[i][3:0]== update_RS_ROB_pos) begin
+                if (update_RS_valid && !RS_qk[i] && RS_vk[i][3:0]== update_RS_ROB_pos) begin
                     RS_qk[i]<=1;
                     RS_vk[i]<=update_RS_val;
                 end
-                if (update_LSB_Load_valid && !RS_qk[i] && RS_vj[i][3:0]== update_LSB_Load_ROB_pos) begin
+                if (update_LSB_Load_valid && !RS_qk[i] && RS_vk[i][3:0]== update_LSB_Load_ROB_pos) begin
                     RS_qk[i]<=1;
                     RS_vk[i]<=update_LSB_Load_val;
                 end
